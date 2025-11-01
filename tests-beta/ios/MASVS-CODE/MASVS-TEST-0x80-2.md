@@ -4,6 +4,7 @@ title: Testing Enforced Updating
 id: MASTG-TEST-0x80-2
 type: [dynamic]
 weakness: MASWE-0075
+profiles: [L2]
 ---
 
 ## Overview

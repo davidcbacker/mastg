@@ -7,6 +7,9 @@ platform: ios
 title: Testing Enforced Updating
 masvs_v1_levels:
 - L2
+status: deprecated
+covered_by: ['MASTG-TEST-0x80-2', 'MASTG-TEST-0x80-3']
+deprecation_note: New version available in MASTG V2
 ---
 
 ## Overview

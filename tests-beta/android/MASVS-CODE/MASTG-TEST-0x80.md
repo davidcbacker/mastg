@@ -1,10 +1,9 @@
 ---
-Title: Testing Enforced Updating
-ID: MASTG-TEST-0x80
-Platform: android
-MASVS v1: ['MSTG-ARCH-9']
-MASVS v2: ['MASVS-CODE-2']
+platform: android
+title: Testing Enforced Updating
+id: MASTG-TEST-0x80
 type: [static]
+weakness: MASWE-0075
 ---
 
 ## Overview

@@ -4,6 +4,7 @@ platform: ios
 id: MASTG-TEST-0067
 type: [static, dynamic]
 weakness: MASWE-0052
+best-practices: [MASTG-BEST-0025]
 profiles: [L1, L2]
 ---
 

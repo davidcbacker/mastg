@@ -19,33 +19,8 @@ env:
   VPN_CONFIG_PATH: /home/runner/my_vpn_config.ovpn
 
 jobs:
-  changes:
-    name: Check for file changes
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    outputs:
-      frida: ${{ steps.filter.outputs.frida }}
-      javascript-deps: ${{ steps.filter.outputs.javascript-deps }}
-      shell: ${{ steps.filter.outputs.shell }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: src/corellium/data/config/dorny-paths-filter.yaml
-          list-files: 'shell'
-
   frida:
     name: Run Frida on ${{ matrix.os }}
-    needs: changes
-    if: >-
-      ${{
-        github.event_name == 'workflow_dispatch' ||
-        needs.changes.outputs.frida == 'true' ||
-        needs.changes.outputs.javascript-deps == 'true' ||
-        needs.changes.outputs.shell == 'true'
-      }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -99,24 +74,12 @@ jobs:
         run: |
           npm ci
           echo "$(pwd)/node_modules/.bin" >> "${GITHUB_PATH}"
-      - name: Debug Corellium secrets
-        env:
-            CORELLIUM_API_TOKEN: ${{ secrets.CORELLIUM_API_TOKEN }}
-            CORELLIUM_API_ENDPOINT: ${{ vars.CORELLIUM_API_ENDPOINT }} # or secrets/inline, whatever you use
-        run: |
-            if [ -z "${CORELLIUM_API_TOKEN:-}" ]; then
-            echo "CORELLIUM_API_TOKEN is EMPTY in this job."
-            exit 1
-            fi
-
-            echo "CORELLIUM_API_TOKEN length: ${#CORELLIUM_API_TOKEN}"
-            echo "CORELLIUM_API_ENDPOINT: ${CORELLIUM_API_ENDPOINT:-<not set>}"
       - name: Log in to Corellium
         run: |
           corellium login \
             --apitoken ${{ secrets.CORELLIUM_API_TOKEN }} \
             --endpoint  ${{ vars.CORELLIUM_API_ENDPOINT }}
-      - name: Start or create instance
+      - name: Create instance
         timeout-minutes: 1
         env:
           CORELLIUM_API_ENDPOINT: ${{ vars.CORELLIUM_API_ENDPOINT }}
@@ -136,12 +99,12 @@ jobs:
         run: |
           source ./src/corellium/functions.sh && set -euo pipefail
           install_openvpn_dependencies
+          install_frida_dependencies
           if [ "${{ matrix.hardware_flavor }}" = 'ranchu' ]; then
             install_adb_dependency
           else
             install_usbfluxd_and_dependencies
           fi
-          install_frida_dependencies
       - name: Wait for instance agent ready
         timeout-minutes: 20
         run: |
@@ -178,36 +141,35 @@ jobs:
           kill_app "${CORELLIUM_INSTANCE_ID}" "${{ matrix.corellium_cafe_app_id }}"
           install_app_from_url "${CORELLIUM_INSTANCE_ID}" "${{ matrix.corellium_cafe_source_url }}"
       - name: Launch Cafe and run frida-ps
-        timeout-minutes: 1
+        timeout-minutes: 10
         env:
           CORELLIUM_API_ENDPOINT: ${{ vars.CORELLIUM_API_ENDPOINT }}
           CORELLIUM_API_TOKEN: ${{ secrets.CORELLIUM_API_TOKEN }}
         run: |
           source ./src/corellium/functions.sh && set -euo pipefail
           launch_app "${CORELLIUM_INSTANCE_ID}" "${{ matrix.corellium_cafe_app_id }}"
+          sleep 5
           run_frida_ps_usb
-      - name: Run frida hook
+      - name: Run frida script
         timeout-minutes: 2
         env:
           FRIDA_SCRIPT_PATH: src/util/frida_script_example.js
         run: |
           source ./src/corellium/functions.sh && set -euo pipefail
           run_frida_script_usb "${{ matrix.corellium_cafe_app_id }}" "${FRIDA_SCRIPT_PATH}"
-      - name: Delete instance
+      - name: Delete Corellium device
         if: always()
         timeout-minutes: 15
         run: |
           source ./src/corellium/functions.sh && set -euo pipefail
           if [ -z "${CORELLIUM_INSTANCE_ID:-}" ]; then
-            log_warning 'CORELLIUM_INSTANCE_ID is not set.'
+            log_stdout 'CORELLIUM_INSTANCE_ID is not set.'
           else
-            log_stdout "Stopping ephemeral instance ${CORELLIUM_INSTANCE_ID}."
+            log_stdout "Ready to delete ephemeral instance ${CORELLIUM_INSTANCE_ID}."
             stop_instance "${CORELLIUM_INSTANCE_ID}"
-            log_stdout "Deleting ephemeral instance ${CORELLIUM_INSTANCE_ID}."
             delete_instance "${CORELLIUM_INSTANCE_ID}"
-            log_stdout "Deleted ephemeral instance ${CORELLIUM_INSTANCE_ID}."
           fi
-      - name: Clean up Corellium auth and processes
+      - name: Clean up runner
         if: always()
         timeout-minutes: 1
         env:

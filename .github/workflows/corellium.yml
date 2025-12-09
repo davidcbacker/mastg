@@ -146,7 +146,7 @@ jobs:
       - name: Run frida script
         timeout-minutes: 2
         env:
-          FRIDA_SCRIPT_PATH: src/util/frida_script_example.js
+          FRIDA_SCRIPT_PATH: src/frida_script_example.js
         run: |
           source ./src/corellium/functions.sh && set -euo pipefail
           run_frida_script_usb "${{ matrix.corellium_cafe_app_id }}" "${FRIDA_SCRIPT_PATH}"

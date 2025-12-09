@@ -1,19 +1,7 @@
 # automatecorellium
 
-## CI Health Checks
-
-See the current CI pass/fail status of dynamic and static checks.
-
-### Most Recent Commit
-
-[![Static code checks](https://github.com/davidcbacker/automatecorellium/actions/workflows/commit_checks.yaml/badge.svg)](https://github.com/davidcbacker/automatecorellium/actions/workflows/commit_checks.yaml)
-
-### Scheduled MATRIX Run
-
-[![Scan with Corellium MATRIX](https://github.com/davidcbacker/automatecorellium/actions/workflows/scan_with_matrix.yaml/badge.svg?event=schedule)](https://github.com/davidcbacker/automatecorellium/actions/workflows/scan_with_matrix.yaml)
-
-### Scheduled Stop, Start, and Delete Runs
-
-[![Start Corellium devices](https://github.com/davidcbacker/automatecorellium/actions/workflows/start_devices.yaml/badge.svg?event=schedule)](https://github.com/davidcbacker/automatecorellium/actions/workflows/start_devices.yaml)
-[![Stop Corellium devices](https://github.com/davidcbacker/automatecorellium/actions/workflows/stop_devices.yaml/badge.svg?event=schedule)](https://github.com/davidcbacker/automatecorellium/actions/workflows/stop_devices.yaml)
-[![Delete Corellium devices](https://github.com/davidcbacker/automatecorellium/actions/workflows/delete_devices.yaml/badge.svg?event=schedule)](https://github.com/davidcbacker/automatecorellium/actions/workflows/delete_devices.yaml)
+1. Add the appropriate `yaml` files and copy `functions.sh` to your GitHub repository
+2. Set the `CORELLIUM_API_ENDPOINT` actions variable to the domain for your server
+   - For example, `https://exampledomain.enterprise.corellium.com` or `https://corellium.examplecompany.com`
+3. Set the `CORELLIUM_API_TOKEN` secret ([see Corellium documentation](https://support.corellium.com/administration/api-token))
+4. Set the `CORELLIUM_DEFAULT_PROJECT` actions variable ([see GitHub documentation](https://docs.github.com/actions/learn-github-actions/variables))

@@ -90,6 +90,47 @@ does_instance_exist()
   fi
 }
 
+get_available_cores()
+{
+  local PROJECT_ID="$1"
+  local GET_PROJECTS_RESPONSE_JSON AVAILABLE_PROJECT_CORES
+  GET_PROJECTS_RESPONSE_JSON="$(corellium project list)" || {
+    log_error "Failed to get projects list."
+    return
+  }
+
+  echo "${GET_PROJECTS_RESPONSE_JSON}" |
+    jq -e --arg id "${PROJECT_ID}" 'any(.[]; .id == $id)' > /dev/null || {
+    log_error "Project ${PROJECT_ID} does not exist."
+    exit 1
+  }
+
+  AVAILABLE_PROJECT_CORES="$(echo "${GET_PROJECTS_RESPONSE_JSON}" |
+    jq --arg project_id "${PROJECT_ID}" \
+      '.[] | select(.id == $project_id) | .quotas.cores - .quotasUsed.cores')"
+  echo "${AVAILABLE_PROJECT_CORES}"
+}
+
+wait_until_available_cores()
+{
+  local PROJECT_ID="$1"
+  local REQUIRED_CORES="${2:-6}"
+  local WAIT_CORES_SLEEP_TIME_SECONDS='15'
+  [ -z "${PROJECT_ID}" ] && {
+    log_error 'Project ID must be set.'
+    exit 1
+  }
+  log_stdout "Waiting until ${REQUIRED_CORES} CPU cores are available."
+  local AVAILABLE_CORES
+  AVAILABLE_CORES="$(get_available_cores "${PROJECT_ID}")"
+  while [ "${AVAILABLE_CORES:-0}" -lt "${REQUIRED_CORES}" ]; do
+    log_warn "Only ${AVAILABLE_CORES} CPU cores are available."
+    sleep "${WAIT_CORES_SLEEP_TIME_SECONDS}"
+    AVAILABLE_CORES="$(get_available_cores "${PROJECT_ID}")"
+  done
+  log_stdout "${AVAILABLE_CORES} CPU cores are available."
+}
+
 create_instance()
 {
   local HARDWARE_FLAVOR="$1"
@@ -126,17 +167,29 @@ EOF
     )
   fi
 
-  check_env_vars
-  curl --silent -X POST "${CORELLIUM_API_ENDPOINT}/api/v1/instances" \
+  CREATE_INSTANCE_RESPONSE_JSON="$(curl --silent -X POST "${CORELLIUM_API_ENDPOINT}/api/v1/instances" \
     -H "Accept: application/json" \
     -H "Authorization: Bearer ${CORELLIUM_API_TOKEN}" \
     -H "Content-Type: application/json" \
-    -d "${CREATE_INSTANCE_REQUEST_DATA}" |
-    jq -r .id || {
+    -d "${CREATE_INSTANCE_REQUEST_DATA}")" || {
     log_error "Failed to create new instance in project ${PROJECT_ID}."
-    log_error "Hardware was ${HARDWARE_FLAVOR} running ${FIRMWARE_VERSION} (${FIRMWARE_BUILD})."
+    echo "${CREATE_INSTANCE_REQUEST_DATA}" >&2
     exit 1
   }
+
+  CREATED_INSTANCE_ID="$(echo "${CREATE_INSTANCE_RESPONSE_JSON}" | jq -r .id)" || {
+    log_error 'Response does not contain a new instance ID.'
+    log_error "$(echo "${CREATE_INSTANCE_RESPONSE_JSON}" | jq -r .error)"
+    exit 1
+  }
+
+  [ "${CREATED_INSTANCE_ID}" = 'null' ] && {
+    log_error 'Response contains a null instance ID.'
+    log_error "$(echo "${CREATE_INSTANCE_RESPONSE_JSON}" | jq -r .error)"
+    exit 1
+  }
+
+  echo "${CREATED_INSTANCE_ID}"
 }
 
 delete_instance()
